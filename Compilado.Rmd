@@ -1,0 +1,272 @@
+---
+title: "Gráficos Gerais"
+author: "Lucas Brandão"
+date: "10/29/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(PNADcIBGE);library(survey);library(Hmisc);library(tidyverse);library(ineq);library(foreign);library(DescTools)
+df1 <- read.spss("./PNADC_MG_2012_2019TRAB_visita1.sav")
+df2 <- data.frame(df1)
+df2.1 <- df2 %>% dplyr::select(Ano,V1032,VD5008,CO2_H) %>% 
+  group_by(Ano) %>%
+  summarise(VD5008 = Gini(VD5008*CO2_H, n = V1032,na.rm = TRUE)) 
+
+dfginitrab <- df2 %>% dplyr::select(Ano,V1032,VD4017,CO2_H) %>% 
+  drop_na() %>% 
+  mutate(rendadefl = VD4017*CO2_H) %>% 
+  group_by(Ano) %>% summarise(VD4017 = Gini(rendadefl, n = V1032, na.rm = TRUE))
+
+dfginitrab2 <- df2 %>% dplyr::select(Ano,V1032,VD4020,CO2_H) %>% 
+  drop_na() %>% 
+  mutate(rendadefl = VD4020*CO2_H) %>% 
+  group_by(Ano) %>% summarise(VD4020 = Gini(rendadefl, n = V1032, na.rm = TRUE))
+
+rm(df1)
+
+df3 <- df2 %>% select(Ano,V1032, V1008,UPA,VD2003,VD4016,VD4017,VD4019,VD4020,VD4022,VD5005,VD5008,VD5011,CO2_H) %>% 
+  mutate(domicilio = paste(UPA,"",V1008)) %>% 
+  mutate(VD4022 = VD4022*CO2_H) %>% 
+  mutate(VD4020 = VD4020*CO2_H) %>% 
+  group_by(Ano,domicilio) %>% 
+  summarise(componentes = mean(VD2003),
+            rendatotal = sum(VD4022*V1032,na.rm = TRUE),
+            rendatotalspeso = sum(VD4022,na.rm = TRUE),
+            rendafontes = sum(VD4022*V1032,na.rm = TRUE)/mean(VD2003,na.rm = TRUE),
+            rendatrab = sum(VD4020*V1032,na.rm = TRUE)/mean(VD2003,na.rm = TRUE),
+            rendafontesspeso = sum(VD4022,na.rm = TRUE)/mean(VD2003,na.rm = TRUE),
+            rendatrabspeso = sum(VD4020,na.rm = TRUE)/mean(VD2003,na.rm = TRUE)) %>% 
+  mutate(ptrab = rendatrab/rendafontes ) %>% 
+  mutate(ptrabspeso = rendatrabspeso/rendafontesspeso) %>% 
+  group_by(Ano) %>% 
+  summarise(rendafontmedia = mean(rendafontes),
+            rendatrabmedia = mean(rendatrab),
+            rendafontmediaspeso = mean(rendafontesspeso),
+            rentrabmediaspeso = mean(rendatrabspeso)) %>% 
+  mutate(ptrab = rendatrabmedia/rendafontmedia) %>% 
+  mutate(ptrabspeso = rentrabmediaspeso/rendafontmediaspeso)
+
+Quantis <- function(Ano1,quantis){
+
+
+  dfAno1.1 <- df2 %>% dplyr::select(Ano, VD5008,V1032,CO2_H) %>% 
+          filter(Ano == Ano1)
+
+  rendaquantil <- wtd.quantile(dfAno1.1$VD5008*dfAno1.1$CO2_H,
+                                 weights = dfAno1.1$V1032,
+                                 probs = seq(1/quantis,1,by = 1/quantis),
+                                 na.rm = TRUE, type = "(i-1)/(n-1)")
+
+  dfAno1.2 <- df2 %>% 
+    dplyr::select(Ano,VD5008,V1032,CO2_H) %>% 
+    filter(Ano %in% c(Ano1)) %>% 
+    mutate(VD5008 = VD5008*CO2_H) %>% 
+    arrange(VD5008) %>% 
+    mutate(quantil = ntile(VD5008,quantis)) %>%
+    group_by(quantil) %>% 
+    summarise(rendamedia = max(VD5008)) %>%
+    drop_na() %>% 
+    mutate(rendamedia = rendaquantil) 
+  return(dfAno1.2)
+  
+}
+
+df2019 <- Quantis(2019,100)
+df2012 <- Quantis(2012,100)
+df2015 <- Quantis(2015,100)
+```
+
+
+
+## Coeficiente de Gini da Renda domiciliar per capita
+```{r, echo=FALSE}
+df2.1 %>% ggplot(aes(x = Ano, y = VD5008)) +
+  geom_line(size=1.5, colour = "#5167A8")+ylim(0.48,0.51)+
+  #geom_point(size = 2, colour = "#5167A8")+
+  ylab(" Coeficiente de Gini")+
+  theme_light()+
+  labs(title = ,
+       caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)")+
+  geom_text(aes(label= round(VD5008,3),vjust = -1.5),colour = "#5167A8")+
+  theme(plot.subtitle = element_text(size = 8), 
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+
+```
+*Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+\pagebreak
+## Coeficiente de Gini da Renda do trabalho¹ e rendimento domiciliar percapita²
+
+```{r, echo=FALSE}
+
+dftrabdom <- left_join(dfginitrab,df2.1, by = "Ano")
+
+dftrabdom %>% ggplot(aes(x = Ano))+
+  geom_line(aes(y = VD4017), color = "#708EEB",size=1.5)+
+  geom_line(aes(y = VD5008), color = "#999D9E",size=1.5)+
+  ylim(0.47,0.525)+
+  geom_text(aes(y = VD4017,label= round(VD4017,3),vjust = -1.5), color = "#708EEB")+
+  #geom_text(aes(y = VD5008,label= round(VD5008,3),vjust = 1.5), color = "#999D9E")+
+  geom_text(aes(y = 0.51, x = 2012, label = "Gini da renda domiciliar per capita", fontface = "bold"), color = "#999D9E",check_overlap = TRUE, hjust = 0)+
+  geom_text(aes(y = 0.506, x = 2012, label = "Gini da renda do trabalho",fontface = "bold"), color = "#708EEB",check_overlap = TRUE, hjust = 0)+
+  ylab(" Coeficiente de Gini")+
+  theme_light()+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)")+
+  theme(plot.subtitle = element_text(size = 8), 
+        axis.title.x = element_text(face="bold"), 
+        #axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  scale_x_continuous(breaks = seq(2012,2019,1))
+  
+
+```
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+²Rendimento mensal efetivo do trabalho principal para pessoas de 14 anos ou mais de idade 
+(apenas para pessoas que receberam em dinheiro, produtos ou mercadorias no trabalho principal)"
+
+
+\pagebreak
+## Evolução da renda Domiciliar per capita¹(em R$ de 2019)
+
+```{r, echo=FALSE}
+df2rendamedia<-df2 %>% select(Ano,V1032, V1008,UPA,VD2003,VD4016,VD4017,VD4019,VD4020,VD4022,VD5005,VD5008,VD5011,CO2_H) %>% 
+  group_by(Ano) %>% summarise(VD5008 = weighted.mean(VD5008*CO2_H,V1032,na.rm = TRUE))
+
+df2rendamedia %>%  ggplot(aes(x = Ano, y = VD5008)) +
+  geom_line(size=1.5, colour = "#5167A8")+
+  #geom_point(size = 2,  colour = "#5167A8")+
+  ylab(" Renda Média(R$)")+
+  ylim(1100,1500)+
+  theme_light()+
+  labs(caption ="Fonte: Microdados da PNAD Contínua(2012 a 2019)")+
+  geom_text(aes(label= paste("R$",round(VD5008,1)),vjust = -2),size=3.5, colour = "#5167A8")+
+  theme(plot.subtitle = element_text(size = 8), 
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank())
+
+
+```
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes) (exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+\pagebreak
+## Evolução da componente do trabalho na renda domiciliar per capita¹
+
+```{r, echo = FALSE}
+
+
+df3 %>% ggplot(aes(x = Ano, y = ptrab))+
+  geom_line(size=1.5, colour = "#5167A8")+
+  #geom_point(size = 2,  colour = "#5167A8")+
+  ylab("Componente do trabalho na renda")+
+  theme_light()+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)")+
+  geom_text(aes(x = Ano+0.1,label= paste(round(ptrab*100,1),"%"),
+                vjust = -1.5),
+            size=4,colour = "#5167A8")+
+  theme(plot.subtitle = element_text(size = 5),
+        axis.title.x = element_text(face="bold"),
+        axis.title.y = element_text(face="bold"),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())+
+  scale_y_continuous(labels = scales::percent, limits = c(0.64,0.71))
+
+```
+
+¹Calculado com base no Rendimento mensal efetivo de todos os trabalhos para pessoas de 14 anos ou mais de idade (apenas para pessoas que receberam em dinheiro, produtos ou mercadorias em qualquer trabalho) e no Rendimento mensal efetivo de todas as fontes (apenas para pessoas que receberam em dinheiro, produtos ou mercadorias em qualquer trabalho ou que receberam rendimentos em dinheiro de outras fontes), com valores em R$ de 2019
+
+\pagebreak
+## Variação da renda¹ dos quantis entre 2015 e 2019
+
+```{r, echo = FALSE}
+
+df20152019 <- left_join(df2015,df2019, by = "quantil")  
+df20152019 %>%  
+  mutate(var =(rendamedia.y/rendamedia.x) - 1) %>% 
+  ggplot()+
+  geom_point(aes(x = quantil,y=var),alpha = 0.2)+
+  geom_smooth(aes(x = quantil,y=var), span = 0.2, se = FALSE, size = 1.5)+
+  geom_line(aes (x = quantil, y = 0))+
+  ylab("Variação da renda")+
+  xlab("Percentis")+
+  theme_light()+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2015/2019)")+
+  theme(plot.subtitle = element_text(size = 5), 
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"))+
+  scale_y_continuous(labels = scales::percent, n.breaks = 10)
+
+```
+¹Rendimento domiciliar per capita  (habitual de todos os trabalhos e efetivo de outras fontes) (exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico),com valores em R$ de 2019
+
+\pagebreak
+## Variação da renda¹ dos quantis entre 2012 e 2015
+
+```{r, echo = FALSE}
+
+df20122015 <- left_join(df2012,df2015, by = "quantil")  
+df20122015 %>%  
+  mutate(var =(rendamedia.y/rendamedia.x) - 1) %>% 
+  ggplot()+
+  geom_point(aes(x = quantil,y=var),alpha = 0.2)+
+  geom_smooth(aes(x = quantil,y=var), span = 0.2, se = FALSE, size = 1.5)+
+  geom_line(aes (x = quantil, y = 0))+
+  ylab("Variação da renda")+
+  xlab("Percentis")+
+  theme_light()+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2015/2019)")+
+  theme(plot.subtitle = element_text(size = 5), 
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"))+
+  scale_y_continuous(labels = scales::percent, n.breaks = 10)
+
+```
+¹Rendimento domiciliar per capita  (habitual de todos os trabalhos e efetivo de outras fontes) (exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico),com valores em R$ de 2019
+
+\pagebreak
+## Taxa de Pobreza para duas linhas de pobreza¹- Minas Gerais, 2012-2019
+
+```{r, echo = FALSE}
+df2 %>% select(Ano, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Até ¼ salário mínimo"," Mais de ¼ até ½ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD5009),size = 1.3)+
+  #geom_point(aes(x = Ano, y = freq,colour = VD5009),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1, colour = VD5009))+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)")+
+  theme_light()+
+  geom_text(aes(x = 2012, y=0.12,label = "Até  ¼ salário mínimo",colour = " Até ¼ salário mínimo",fontface = "bold"),check_overlap = TRUE, hjust = 0)+
+  geom_text(aes(x = 2012, y=0.23,label = "Mais de ¼ até ½ salário mínimo",colour = " Mais de ¼ até ½ salário mínimo",fontface = "bold"),check_overlap = TRUE, hjust = 0)+
+  theme(plot.subtitle = element_text(size = 8),
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        legend.position="None",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank() )+
+  scale_y_continuous(labels = scales::percent, limits = c(0.05,0.25))+
+  scale_colour_manual(values = c("#2F3B61","#5167A8"))
+
+```
+
+¹Calculado com base na Faixa de rendimento domiciliar per capita  (habitual de todos os trabalhos e efetivo de outras fontes) (exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)

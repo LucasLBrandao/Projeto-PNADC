@@ -1,0 +1,110 @@
+---
+title: "Variação da renda nos grupos sociais"
+author: "Lucas Brandão"
+date: "10/30/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(Hmisc);library(tidyverse);library(ineq);library(foreign);library(DescTools)
+df1 <- read.spss("./PNADC_MG_2012_2019TRAB_visita1.sav")
+df2 <- data.frame(df1) %>% 
+  mutate(VD_FAIXA_IDADE2 = str_squish(as.character(VD_FAIXA_IDADE))) %>% 
+  mutate(VD_FAIXA_IDADE3 = ifelse(VD_FAIXA_IDADE2 %in% c("25 a 39 anos","40 a 59 anos"),"25 a 59 anos",VD_FAIXA_IDADE2)) %>% 
+  mutate(VD_ESCOLA2 = recode(VD_ESCOLA,
+                             "Sem instrução e menos de 1 ano de estudo" = "Fundamental Incompleto",
+                             "Médio Incompleto" = "Fundamental Completo",
+                             "Médio Completo e Superior incompleto" = "Médio Completo"))
+  
+
+varrendaanoaano<- function(coluna = "V2007"){
+  dfvarrenda <- df2 %>% 
+    select(Ano, V1032, VD5008, CO2_H, matches(coluna)) %>% 
+    mutate(VD5008infl = VD5008*CO2_H) %>% 
+    group_by_at(c(1,5)) %>% 
+    drop_na() %>% 
+    summarise(n = weighted.mean(VD5008*CO2_H,V1032,na.rm = TRUE))
+  colnames(dfvarrenda) <- c("Ano","variavel","n")
+  maximo <- max(dfvarrenda$n/1000)*1.1
+  minimo <- min(dfvarrenda$n/1000)*0.9
+  
+  dfvarrendatotal <- df2 %>% 
+    select(Ano, V1032, VD5008, CO2_H) %>% 
+    mutate(VD5008infl = VD5008*CO2_H) %>% 
+    group_by(Ano) %>% 
+    drop_na() %>% 
+    summarise(n = weighted.mean(VD5008*CO2_H,V1032,na.rm = TRUE)) %>% 
+    mutate(variavel = "Total")
+  
+  dfvarrenda1 <- rbind(dfvarrendatotal,dfvarrenda) %>% mutate(variavel = factor(variavel, levels = c("Total", as.character(unique(dfvarrenda$variavel)))))
+  dfvarrenda1$variavel
+  
+  g <- dfvarrenda1 %>% 
+    ggplot(aes(x = Ano, y = n/1000, colour = variavel))+
+    geom_line(size = 1.5)+
+    ylim(minimo,maximo)+
+    geom_text(aes(label = ifelse(variavel == "Total","",round(n/1000,2)), y = (n/1000)+(maximo - minimo)/20))+
+    labs(
+         y = "Média da renda domiciliar per capita(em mil R$)",
+         caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)" )+
+  theme_light()+
+    scale_colour_manual(values = c("#bfbfbf","#93B4F5","#8D9ECC","#657BA8","#56698F","#3F4D69","#2F3A4F"))+ 
+    theme(panel.grid = element_blank(),
+          legend.position = "bottom",
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank())+
+    scale_x_continuous(breaks = 2012:2019)
+  g
+}
+
+
+```
+
+## Variação da renda¹ por sexo
+
+```{r , echo=FALSE}
+
+varrendaanoaano("V2007")
+
+```
+
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico).
+
+
+
+## Variação da renda¹ por escolaridade
+
+```{r , echo=FALSE}
+
+varrendaanoaano("VD_ESCOLA2")
+
+```
+
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico).
+
+## Variação da renda¹ por idade
+
+```{r , echo=FALSE}
+
+varrendaanoaano("VD_FAIXA_IDADE3")
+
+```
+
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico).
+
+## Variação da renda¹ por raça
+
+```{r , echo=FALSE}
+
+varrendaanoaano("VD_RAÇA")
+
+```
+
+¹Rendimento domiciliar per capita (habitual de todos os trabalhos e efetivo de outras fontes)(exclusive o rendimento das pessoas cuja condição na unidade domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico).
+
+
+

@@ -1,0 +1,283 @@
+---
+title: "Variação dos pobres por grupo social"
+author: "Lucas Brandão"
+date: "10/30/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(Hmisc);library(tidyverse);library(ineq);library(foreign);library(DescTools)
+
+df1 <- read.spss("./PNADC_MG_2012_2019TRAB_visita1.sav")
+df2 <- data.frame(df1) %>% 
+  mutate(VD_FAIXA_IDADE2 = str_squish(as.character(VD_FAIXA_IDADE))) %>% 
+  mutate(VD_FAIXA_IDADE3 = ifelse(VD_FAIXA_IDADE2 %in% c("25 a 39 anos","40 a 59 anos"),"25 a 59 anos",VD_FAIXA_IDADE2)) %>% 
+  mutate(VD_ESCOLA2 = recode(VD_ESCOLA,
+                             "Sem instrução e menos de 1 ano de estudo" = "Fundamental Incompleto",
+                             "Médio Incompleto" = "Fundamental Completo",
+                             "Médio Completo e Superior incompleto" = "Médio Completo"))
+  
+```
+
+# Variação dos pobres por Sexo
+## Taxa de pobreza¹ Até ¼ salário mínimo por sexo - Minas Gerais, 2012-2019"
+```{r , echo=FALSE}
+df2 %>% select(Ano,V2007, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,V2007,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Até ¼ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = V2007),size = 1.2)+
+  #geom_point(aes(x = Ano, y = freq,colour = V2007),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1,colour = V2007),size = 4)+
+  geom_text(aes(x = 2012, y = 0.055, label = "Masculino", fontface = "bold"),colour = "#657BA8" ,hjust = 0, check_overlap = TRUE)+
+  geom_text(aes(x = 2012, y = 0.058, label = "Feminino", fontface = "bold"),colour = "#3F4D69" ,hjust = 0, check_overlap = TRUE)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)")+
+  theme_light()+
+  theme(axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none")+
+  scale_y_continuous(labels = scales::percent, limits = c(0.025,0.06))+
+  scale_colour_manual(values = c("#657BA8","#3F4D69"))+
+  scale_x_continuous(breaks = 2012:2019)
+```
+¹Calculada com base na Faixa de rendimento domiciliar per capita 
+(habitual de todos os trabalhos e efetivo de outras fontes) 
+(exclusive o rendimento das pessoas cuja condição na unidade 
+domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+## Taxa de pobreza¹ Mais de ¼ até ½ salário mínimo por sexo - Minas Gerais, 2012-2019"
+```{r , echo=FALSE}
+df2 %>% select(Ano,V2007, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,V2007,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Mais de ¼ até ½ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = V2007),size = 1.2)+
+  #geom_point(aes(x = Ano, y = freq,colour = V2007),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1,colour = V2007),size = 4)+
+  geom_text(aes(x = 2012, y = 0.102, label = "Masculino", fontface = "bold"),colour = "#657BA8" ,hjust = 0, check_overlap = TRUE)+
+  geom_text(aes(x = 2012, y = 0.105, label = "Feminino", fontface = "bold"),colour = "#3F4D69" ,hjust = 0, check_overlap = TRUE)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)")+
+  theme_light()+
+  theme(axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none")+
+  scale_y_continuous(labels = scales::percent, limits = c(0.065,0.11))+
+  scale_colour_manual(values = c("#657BA8","#3F4D69"))+
+  scale_x_continuous(breaks = 2012:2019)
+```
+¹Calculada com base na Faixa de rendimento domiciliar per capita 
+(habitual de todos os trabalhos e efetivo de outras fontes) 
+(exclusive o rendimento das pessoas cuja condição na unidade 
+domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+
+# Variação dos pobres por Raça
+## Taxa de pobreza¹ Até ¼ salário mínimo por raça - Minas Gerais, 2012-2019"
+```{r , echo=FALSE}
+df2 %>% select(Ano,VD_Raça, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_Raça,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Mais de ¼ até ½ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_Raça),size = 1.2)+
+  #geom_point(aes(x = Ano, y = freq,colour = V2007),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1,colour = VD_Raça),size = 4)+
+  geom_text(aes(x = 2012, y = 0.143, label = "Raça Branca", fontface = "bold"),colour = "#657BA8" ,hjust = 0, check_overlap = TRUE)+
+  geom_text(aes(x = 2012, y = 0.15, label = "Raça Negra", fontface = "bold"),colour = "#3F4D69" ,hjust = 0, check_overlap = TRUE)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)")+
+  theme_light()+
+  theme(axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none")+
+  scale_y_continuous(labels = scales::percent, limits = c(0.03,0.15))+
+  scale_colour_manual(values = c("#657BA8","#3F4D69"))+
+  scale_x_continuous(breaks = 2012:2019)
+```
+¹Calculada com base na Faixa de rendimento domiciliar per capita 
+(habitual de todos os trabalhos e efetivo de outras fontes) 
+(exclusive o rendimento das pessoas cuja condição na unidade 
+domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+## Taxa de pobreza¹ Mais de ¼ até ½ salário mínimo por raça - Minas Gerais, 2012-2019"
+```{r , echo=FALSE}
+df2 %>% select(Ano,VD_Raça, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_Raça,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Até ¼ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_Raça),size = 1.2)+
+  #geom_point(aes(x = Ano, y = freq,colour = V2007),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1,colour = VD_Raça),size = 4)+
+  geom_text(aes(x = 2012, y = 0.074, label = "Raça Branca", fontface = "bold"),colour = "#657BA8" ,hjust = 0, check_overlap = TRUE)+
+  geom_text(aes(x = 2012, y = 0.08, label = "Raça Negra", fontface = "bold"),colour = "#3F4D69" ,hjust = 0, check_overlap = TRUE)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)")+
+  theme_light()+
+  theme(axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none")+
+  scale_y_continuous(labels = scales::percent, limits = c(0.0,0.08))+
+  scale_colour_manual(values = c("#657BA8","#3F4D69"))+
+  scale_x_continuous(breaks = 2012:2019)
+```
+¹Calculada com base na Faixa de rendimento domiciliar per capita 
+(habitual de todos os trabalhos e efetivo de outras fontes) 
+(exclusive o rendimento das pessoas cuja condição na unidade 
+domiciliar era pensionista, empregado doméstico ou parente do empregado doméstico)
+
+
+# Variação dos pobres por escolaridade
+
+## Taxa de pobreza¹ Até ¼ salário mínimo por escolaridade - Minas Gerais, 2012-2019
+
+```{r , echo=FALSE}
+df2 %>% select(Ano,VD_ESCOLA2, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_ESCOLA2,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Até ¼ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_ESCOLA2),size = 1.2)+
+  geom_point(aes(x = Ano, y = freq,colour = VD_ESCOLA2),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1, colour = VD_ESCOLA2),size = 3.5)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)",
+       colour = "Escolaridade")+
+  theme_light()+
+  theme(plot.subtitle = element_text(size = 8),
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        legend.position = "bottom",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_blank())+
+  scale_y_continuous(labels = scales::percent, limits = c(0.0,0.06), breaks = seq(0,0.06,0.01))+
+  scale_colour_manual(values = c("#3F4D69","#657BA8","#8D9ECC","#93B4F5","#56698F"))+
+  scale_x_continuous(breaks = 2012:2019)
+
+```
+
+## Taxa de pobreza¹ Mais de ¼ até ½ salário mínimo por escolaridade - Minas Gerais, 2012-2019
+```{r , echo=FALSE}
+
+df2 %>% select(Ano,VD_ESCOLA2, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_ESCOLA2,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Mais de ¼ até ½ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_ESCOLA2),size = 1.2)+
+  geom_point(aes(x = Ano, y = freq,colour = VD_ESCOLA2),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1, colour = VD_ESCOLA2),size = 3.5)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)",
+       colour = "Escolaridade")+
+  theme_light()+
+  theme(plot.subtitle = element_text(size = 8),
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        legend.position = "bottom",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_blank())+
+  scale_y_continuous(labels = scales::percent, limits = c(0.0,0.13), breaks = seq(0,0.06,0.01))+
+  scale_colour_manual(values =  c("#3F4D69","#657BA8","#8D9ECC","#93B4F5","#56698F"))+
+  scale_x_continuous(breaks = 2012:2019)
+
+```
+
+
+
+# Variação dos pobres por Faixa de Idade
+
+## Taxa de pobreza¹ Até ¼ salário mínimo por Faixa de Idade - Minas Gerais, 2012-2019
+
+```{r , echo=FALSE}
+df2 %>% select(Ano,VD_FAIXA_IDADE3, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_FAIXA_IDADE3,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Até ¼ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_FAIXA_IDADE3),size = 1.2)+
+  geom_point(aes(x = Ano, y = freq,colour = VD_FAIXA_IDADE3),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1, colour = VD_FAIXA_IDADE3),size = 3)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)",
+       colour = "Escolaridade")+
+  theme_light()+
+  theme(plot.subtitle = element_text(size = 8),
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        legend.position = "bottom",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_blank())+
+  scale_y_continuous(labels = scales::percent, limits = c(0.0005,0.035))+
+  scale_x_continuous(breaks = 2012:2019)
+  #scale_colour_manual(values = c("#3F4D69","#56698F","#657BA8","#8D9ECC","#93B4F5"))
+
+```
+
+## Taxa de pobreza¹ Mais de ¼ até ½ salário mínimo por Faixa de Idade - Minas Gerais, 2012-2019
+
+```{r , echo=FALSE}
+df2 %>% select(Ano,VD_FAIXA_IDADE3, VD5009,V1032) %>% 
+  drop_na() %>% 
+  count(Ano,VD_FAIXA_IDADE3,VD5009,wt = V1032) %>% 
+  group_by(Ano) %>% 
+  mutate(freq = n/sum(n)) %>% 
+  filter(VD5009 %in% c(" Mais de ¼ até ½ salário mínimo")) %>% 
+  ggplot(aes(x = Ano, y = freq))+
+  geom_line(aes(x = Ano, y = freq,colour = VD_FAIXA_IDADE3),size = 1.2)+
+  geom_point(aes(x = Ano, y = freq,colour = VD_FAIXA_IDADE3),size = 2)+
+  geom_text(aes(x = Ano, y = freq,label = paste(round(freq*100,1),"%"),vjust = -1, colour = VD_FAIXA_IDADE3),size = 3)+
+  labs(caption = "Fonte: Microdados da PNAD Contínua(2012 a 2019)",
+       y = "Percentual de Pobres(%)",
+       colour = "Escolaridade")+
+  theme_light()+
+  theme(plot.subtitle = element_text(size = 8),
+        axis.title.x = element_text(face="bold"), 
+        axis.title.y = element_text(face="bold"),
+        legend.position = "bottom",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_blank())+
+  scale_y_continuous(labels = scales::percent, limits = c(0.0005,0.085))+
+  scale_x_continuous(breaks = 2012:2019)
+  #scale_colour_manual(values = c("#3F4D69","#56698F","#657BA8","#8D9ECC","#93B4F5"))
+```
